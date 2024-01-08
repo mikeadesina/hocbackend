@@ -1,18 +1,16 @@
-const multer = require('multer');
-const gm = require('gm').subClass({ imageMagick: true });
-const path = require('path');
-const fs = require('fs');
-const util = require('util');
-
-const promisifyToBuffer = util.promisify(gm().toBuffer);
+const multer = require("multer");
+const sharp = require("sharp");
+const path = require("path");
+const fs = require("fs");
+const { pipeline } = require("stream/promises");
 
 const multerStorage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, path.join(__dirname, '../public/images'));
+        cb(null, path.join(__dirname, "../public/images"));
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + '.jpeg');
+        cb(null, file.fieldname + "-" + uniqueSuffix + ".jpeg");
     },
 });
 
@@ -20,48 +18,81 @@ const multerFilter = (req, file, cb) => {
     if (file.mimetype.startsWith('image')) {
         cb(null, true);
     } else {
-        cb({ message: 'Unsupported file format' });
+        cb({
+            message: "Unsupported file format",
+        });
     }
 };
 
 const uploadPhoto = multer({
     storage: multerStorage,
     fileFilter: multerFilter,
-    limits: { fieldSize: 2000000 },
+    limits: { fieldSize: 2000000 }
 });
 
-const resizeImage = async (req, res, next, folder) => {
-    if (!req.files) return next();
+const resizeAndKeepOriginal = async (file, outputPath) => {
+    try {
+        const readableStream = sharp(file.path)
+            .resize(300, 300)
+            .toFormat('jpeg')
+            .jpeg({ quantity: 90 });
 
-    await Promise.all(
-        req.files.map(async (file) => {
-            const destinationPath = `public/images/${folder}/${file.filename}`;
-
-            try {
-                const buffer = await promisifyToBuffer(gm(file.path).resize(300, 300), 'JPEG');
-
-                fs.writeFileSync(destinationPath, buffer);
-                fs.unlinkSync(file.path);
-            } catch (err) {
-                // Handle the error appropriately
-                console.error(err);
-            }
-        })
-    );
-
-    next();
+        await pipeline(readableStream, fs.createWriteStream(outputPath));
+        await readableStream.end();
+    } catch (error) {
+        console.error("Error resizing file:", error);
+    }
 };
 
 const productImgResize = async (req, res, next) => {
-    await resizeImage(req, res, next, 'products');
+    if (!req.files) return next();
+
+    try {
+        await Promise.all(
+            req.files.map(async (file) => {
+                const outputPath = `public/images/products/${file.filename}`;
+                await resizeAndKeepOriginal(file, outputPath);
+            })
+        );
+        next();
+    } catch (error) {
+        console.error("Error resizing images:", error);
+        next(error);
+    }
 };
 
 const blogImgResize = async (req, res, next) => {
-    await resizeImage(req, res, next, 'blogs');
+    if (!req.files) return next();
+
+    try {
+        await Promise.all(
+            req.files.map(async (file) => {
+                const outputPath = `public/images/blogs/${file.filename}`;
+                await resizeAndKeepOriginal(file, outputPath);
+            })
+        );
+        next();
+    } catch (error) {
+        console.error("Error resizing images:", error);
+        next(error);
+    }
 };
 
 const bannerImgResize = async (req, res, next) => {
-    await resizeImage(req, res, next, 'banners');
+    if (!req.files) return next();
+
+    try {
+        await Promise.all(
+            req.files.map(async (file) => {
+                const outputPath = `public/images/banners/${file.filename}`;
+                await resizeAndKeepOriginal(file, outputPath);
+            })
+        );
+        next();
+    } catch (error) {
+        console.error("Error resizing images:", error);
+        next(error);
+    }
 };
 
 module.exports = { uploadPhoto, productImgResize, blogImgResize, bannerImgResize };

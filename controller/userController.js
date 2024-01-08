@@ -55,8 +55,8 @@ const loginUserController = asyncHandler(async (req, res) => {
 
 /* admin login */
 const loginAdmin = asyncHandler(async (req, res) => {
+  console.log(req.body);
   const { email, password } = req.body;
-
   const findAdmin = await User.findOne({ email });
   if (findAdmin.role !== "admin") throw new Error("Not Authroized");
   if (findAdmin && (await findAdmin.isPasswordMatched(password))) {

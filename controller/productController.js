@@ -18,23 +18,38 @@ const createProduct = asyncHandler(async (req, res) => {
   }
 });
 
-/* now update product */
-
 const updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   validateMongoDbId(id);
   try {
+    let updateProduct;
     if (req.body.title) {
-      req.body.slug = slugify(req.body.title);
+      const { slug, ...restOfBody } = req.body;
+      updateProduct = await Product.findByIdAndUpdate(id, restOfBody, {
+        new: true,
+      });
+      if (updateProduct && slug) {
+        updateProduct.slug = slug;
+        await updateProduct.save();
+      }
+    } else {
+      updateProduct = await Product.findByIdAndUpdate(id, req.body, {
+        new: true,
+      });
     }
-    const updateProduct = await Product.findOneAndUpdate(id, req.body, {
-      new: true,
-    });
+    if (!updateProduct) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
     res.json(updateProduct);
   } catch (error) {
-    throw new Error(error);
+    console.error(error);
+    if (error.code === 11000 || error.code === 11001) {
+      return res.status(400).json({ message: 'Duplicate key error. Slug must be unique.' });
+    }
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 });
+
 
 /* delete a Product */
 const deleteProduct = asyncHandler(async (req, res) => {
@@ -63,28 +78,24 @@ const getaProduct = asyncHandler(async (req, res) => {
 });
 
 /* for all product */
-
 const getAllProduct = asyncHandler(async (req, res) => {
   try {
-    /* this is for filtering */
     const queryObj = { ...req.query };
-    const excludeFeilds = ["page", "sort", "limit", "feilds","color"];
-    excludeFeilds.forEach((el) => delete queryObj[el]);
-
-   
+    const excludeFields = ["page", "sort", "limit", "fields", "color"];
+    excludeFields.forEach((el) => delete queryObj[el]);
 
     let queryStr = JSON.stringify(queryObj);
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    queryStr = queryStr.replace(
+        /\b(gte|gt|lte|lt)\b/g,
+        (match) => `$${match}`
+    );
 
     let query = Product.find(JSON.parse(queryStr));
 
     if (req.query.color) {
-      const colors = req.query.color.split(","); // Assuming multiple colors can be selected
+      const colors = req.query.color.split(",");
       query = query.where("color").in(colors);
     }
-
-
-    /* now sorting */
 
     if (req.query.sort) {
       const sortBy = req.query.sort.split(",").join(" ");
@@ -93,7 +104,77 @@ const getAllProduct = asyncHandler(async (req, res) => {
       query = query.sort("-createdAt");
     }
 
-    /* Now for Limiting Feilds */
+    if (req.query.fields) {
+      const fields = req.query.fields.split(",").join(" ");
+      query = query.select(fields);
+    } else {
+      query = query.select("-__v");
+    }
+
+    // Populate only the 'color' codes
+    query = query.populate([
+          {
+            path: "color",
+            select: "title",
+          },
+         {
+           path: "size",
+           select: "title",
+         }
+          ]);
+
+    const page = req.query.page;
+    const limit = req.query.limit;
+    const skip = (page - 1) * limit;
+    query = query.skip(skip).limit(limit);
+
+    if (req.query.page) {
+      const productCount = await Product.countDocuments();
+      if (skip >= productCount) throw new Error("This Page Does Not Exist");
+    }
+    const products = await query.exec();
+    const result = products.map((product) => ({
+      ...product.toObject(),
+      color: product.color.map((color) => color.title),
+      size: product.size.map((size) => size.title),
+    }));
+    res.json(result);
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+
+
+/*
+const getAllProduct = asyncHandler(async (req, res) => {
+  try {
+    /!* this is for filtering *!/
+    const queryObj = { ...req.query };
+    const excludeFeilds = ["page", "sort", "limit", "feilds","color"];
+    excludeFeilds.forEach((el) => delete queryObj[el]);
+    let queryStr = JSON.stringify(queryObj);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+
+    let query = Product.find(JSON.parse(queryStr));
+
+    if (req.query.color) {
+      const colors = req.query.color.split(",");
+      query = query.where("color").in(colors);
+    }
+    query = query.populate("color");
+
+
+    /!* now sorting *!/
+
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(",").join(" ");
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort("-createdAt");
+    }
+
+    /!* Now for Limiting Feilds *!/
 
     if (req.query.feilds) {
       const feilds = req.query.feilds.split(",").join(" ");
@@ -116,6 +197,7 @@ const getAllProduct = asyncHandler(async (req, res) => {
     throw new Error(error);
   }
 });
+*/
 
 /* WishList Functionality */
 
