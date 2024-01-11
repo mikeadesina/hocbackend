@@ -55,26 +55,29 @@ const loginUserController = asyncHandler(async (req, res) => {
 
 /* admin login */
 const loginAdmin = asyncHandler(async (req, res) => {
-  console.log(req.body);
   const { email, password } = req.body;
   const findAdmin = await User.findOne({ email });
-  if (findAdmin.role !== "admin") throw new Error("Not Authroized");
+  if (!findAdmin) {
+    throw new Error("User not found");
+  }
+  if (findAdmin.role !== "admin") {
+    throw new Error("Not Authorized");
+  }
   if (findAdmin && (await findAdmin.isPasswordMatched(password))) {
     const refreshToken = await generateRefreshToken(findAdmin?._id);
     const updateduser = await User.findByIdAndUpdate(
-      findAdmin.id,
-      {
-        refreshToken: refreshToken,
-      },
-      {
-        new: true,
-      }
+        findAdmin.id,
+        {
+          refreshToken: refreshToken,
+        },
+        {
+          new: true,
+        }
     );
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       maxAge: 72 * 60 * 60 * 1000,
     });
-    // res.json(findUser);
     res.json({
       _id: findAdmin?._id,
       firstname: findAdmin?.firstname,
@@ -84,9 +87,10 @@ const loginAdmin = asyncHandler(async (req, res) => {
       token: generateToken(findAdmin?._id),
     });
   } else {
-    throw new Error("Inavlid Credintials");
+    throw new Error("Invalid Credentials");
   }
 });
+
 
 /* now to handle refresh token */
 
