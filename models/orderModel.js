@@ -38,7 +38,7 @@ var orderSchema = new mongoose.Schema(
         type: String,
       },
       pincode: {
-        type: Number,
+        type: String,
       },
     },
     paymentInfo: {},

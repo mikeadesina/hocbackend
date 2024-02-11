@@ -22,7 +22,34 @@ const createUser = asyncHandler(async (req, res) => {
 
 const loginUserController = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  try {
+    const findUser = await User.findOne({ email });
+    if (findUser && (await findUser.isPasswordMatched(password))) {
+      res.json({
+        _id: findUser?._id,
+        firstname: findUser?.firstname,
+        lastname: findUser?.lastname,
+        email: findUser?.email,
+        mobile: findUser?.mobile,
+        token: generateToken(findUser?._id),
+      });
+    } else {
+      res.status(401).json({ error: "Invalid Credentials" });
+    }
+  } catch (error) {
+    const errorResponse = {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+    };
+    res.status(error.response?.status || 500).json(errorResponse);
+  }
+});
 
+
+/*
+const loginUserController = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
   const findUser = await User.findOne({ email });
   if (findUser && (await findUser.isPasswordMatched(password))) {
     const refreshToken = await generateRefreshToken(findUser?._id);
@@ -49,9 +76,10 @@ const loginUserController = asyncHandler(async (req, res) => {
       token: generateToken(findUser?._id),
     });
   } else {
-    throw new Error("Inavlid Credintials");
+    res.status(401).json({ error: "Invalid Credentials" });
   }
 });
+*/
 
 /* admin login */
 const loginAdmin = asyncHandler(async (req, res) => {
@@ -113,7 +141,12 @@ const handleRefreshToken = asyncHandler(async (req, res) => {
 /* now logout funtion */
 
 const logout = asyncHandler(async (req, res) => {
-  const cookie = req.cookies;
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: true,
+  });
+  return res.sendStatus(204);
+  /*const cookie = req.cookies;
   if (!cookie?.refreshToken) throw new Error("No Refresh Token in Cookies");
   const refreshToken = cookie.refreshToken;
   const user = await User.findOne({ refreshToken });
@@ -131,7 +164,7 @@ const logout = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: true,
   });
-  res.sendStatus(204);
+  res.sendStatus(204);*/
 });
 
 /* update User */

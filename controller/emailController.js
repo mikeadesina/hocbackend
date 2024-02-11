@@ -3,7 +3,7 @@ const asyncHandler = require("express-async-handler");
 
 const sendEmail = asyncHandler(async(data,req,res)=>{
   let transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
+    service: 'gmail',
     port: 587,
     secure: false, 
     auth: {
@@ -13,7 +13,7 @@ const sendEmail = asyncHandler(async(data,req,res)=>{
   });
 
   let info = await transporter.sendMail({
-    from: 'ecommorce-digitc@gmail.com',
+    from: 'akinboroabiodun@gmail.com',
     to: data.to,
     subject: data.subject,
     text: data.text,
@@ -25,8 +25,6 @@ const sendEmail = asyncHandler(async(data,req,res)=>{
       console.log('Email sent: ' + res.response);
     }
   });
-
-
   console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
 })
 

@@ -68,19 +68,25 @@ const deleteProduct = asyncHandler(async (req, res) => {
 const getaProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   validateMongoDbId(id);
-
   try {
-    const findProduct = await Product.findById(id).populate("color").populate("size");
+    /*const findProduct = await Product.findById(id).populate("color").populate("size");*/
+    const findProduct = await Product.findById(id)
+        .populate("color")
+        .populate("size")
+        .populate("ratings.postedby", "firstname lastname");
     res.json(findProduct);
   } catch (error) {
     throw new Error(error);
   }
 });
 
+
+
 /* for all product */
 const getAllProduct = asyncHandler(async (req, res) => {
   try {
     const queryObj = { ...req.query };
+    console.log(queryObj);
     const excludeFields = ["page", "sort", "limit", "fields", "color"];
     excludeFields.forEach((el) => delete queryObj[el]);
 
@@ -241,9 +247,52 @@ const addToWishlist = asyncHandler(async (req, res) => {
 /* Rating Function */
 
 const rating = asyncHandler(async (req, res) => {
+  /*console.log(req.body,req.user);*/
   const { _id } = req.user;
   const { star, prodId , comment } = req.body;
   try {
+    const product = await Product.findById(prodId);
+    const alreadyRated = product.ratings.find(
+        (rating) => rating.postedby.toString() === _id.toString()
+    );
+    if (alreadyRated) {
+      await Product.updateOne(
+          { "ratings._id": alreadyRated._id },
+          { $set: { "ratings.$.star": star, "ratings.$.comment": comment } }
+      );
+    } else {
+      await Product.findByIdAndUpdate(
+          prodId,
+          {
+            $push: {
+              ratings: {
+                star: star,
+                comment: comment,
+                postedby: _id,
+              },
+            },
+          }
+      );
+    }
+    const updatedProduct = await Product.findById(prodId);
+    const totalRating = updatedProduct.ratings.length;
+    const ratingSum = updatedProduct.ratings
+        .map((item) => item.star)
+        .reduce((prev, curr) => prev + curr, 0);
+    const averageRating = Math.round(ratingSum / totalRating);
+    const finalProduct = await Product.findByIdAndUpdate(
+        prodId,
+        { totalrating: averageRating },
+        { new: true }
+    );
+    res.json(finalProduct);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+
+
+  /*try {
     const product = await Product.findById(prodId);
     let alreadyRated = product.ratings.find(
       (userId) => userId.postedby.toString() === _id.toString()
@@ -296,7 +345,7 @@ const rating = asyncHandler(async (req, res) => {
     res.json(finalproduct)
   } catch (error) {
     throw new Error(error);
-  }
+  }*/
 });
 
 

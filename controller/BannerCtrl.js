@@ -7,7 +7,7 @@ const createBanner = async (req, res) => {
   console.log('Received images:', images); 
   try {
     const newBanner = await Banner.create({ images });
-    console.log('New banner:', newBanner); 
+    /*console.log('New banner:', newBanner); */
     res.json(newBanner);
   } catch (error) {
     console.error('Error:', error);
@@ -19,7 +19,7 @@ const createBanner = async (req, res) => {
    const getAllBanners = asyncHandler(async (req, res) => {
     try {
       const banners = await Banner.find();
-      console.log(banners)
+      /*console.log(banners)*/
       res.json(banners);
     } catch (error) {
       res.status(500).json({ error: 'Internal server error' });
