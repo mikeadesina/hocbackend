@@ -312,7 +312,7 @@ const forgotPasswordToken = asyncHandler(async (req, res) => {
   if (!user) throw new Error("User not found with this email");
   let serverURL;
   if (process.env.NODE_ENV === 'production') {
-    serverURL = 'https://hocbackend.onrender.com/';
+    serverURL = 'http://hocfrontend.onrender.com';
   } else {
     serverURL = 'http://localhost:3000';
   }
