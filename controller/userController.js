@@ -310,13 +310,19 @@ const forgotPasswordToken = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
   if (!user) throw new Error("User not found with this email");
-  try {
+  let serverURL;
+  if (process.env.NODE_ENV === 'production') {
+    serverURL = 'https://hocbackend.onrender.com/';
+  } else {
+    serverURL = 'http://localhost:3000';
+  }
+    try {
     const token = await user.createPasswordResetTokan();
     await user.save();
-    const resetURL = `Hi, Please Click on the link to reset your Password. This link is valid till 10 minute from now. <a href='http://localhost:3000/reset-password/${token}'>Click Here <a/>`;
+    const resetURL = `Hi, Please Click on the link to reset your Password. This link is valid till 10 minute from now. <a href='${serverURL}/reset-password/${token}'>Click Here <a/>`;
     const data = {
       to: email,
-      text: "Hello Sir/Mam",
+      text: "Hello Sir/Ma",
       subject: "Forgot Password Link ",
       htm: resetURL,
     };
